@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Workday Instant Autofill",
+  "version": "0.1.0",
+  "description": "WORK IN PROGRESS. Fills Workday application forms from a local, blank-by-default profile. Fills and stops: it never submits.",
+  "permissions": [
+    "storage",
+    "clipboardWrite"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.myworkdayjobs.com/*",
+        "https://*.workday.com/*"
+      ],
+      "js": [
+        "profile.js",
+        "src/dom.js",
+        "src/mappings.js",
+        "src/engine.js",
+        "src/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

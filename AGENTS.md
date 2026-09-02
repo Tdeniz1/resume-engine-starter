@@ -154,6 +154,47 @@ they want, just run this.
 8. **Commit** the application folder so there is a permanent record of what
    was sent where: `git add applications/<slug> && git commit`.
 
+## The Workday autofill extension (workday-autofill/)
+
+⚠️ **WORK IN PROGRESS. This half of the repo is unfinished and needs ongoing
+maintenance. Say so plainly whenever the user asks you to work on it, and do
+not describe it as done, complete, or reliable.**
+
+A local Chrome extension that fills Workday application forms from
+`workday-autofill/profile.js`. It fills and stops; it never submits.
+
+What you need to know before touching it:
+
+1. **It will go stale, permanently.** `src/mappings.js` is a snapshot of
+   Workday `data-automation-id` values and question wording at the time it was
+   written. Workday changes its DOM and every employer customizes their tenant,
+   so unmapped fields and broken selectors are the expected steady state, not a
+   bug report. Extending mappings is routine maintenance, and the user should
+   expect to keep doing it.
+2. **NEVER hardcode an answer in `src/mappings.js`.** Not "Yes", not "No", not
+   a class standing, not a degree level. Every mapping must read from
+   `profile.js`, and must return `""` when the relevant field is unset so the
+   engine skips the question and leaves it for the human. A literal answer in
+   a mapping table answers a legal question identically for everyone who ever
+   installs this. If a question has no home in the profile, add a field to the
+   `screening` block, defaulted to `""`.
+3. **These are legal attestations.** Citizenship, work authorization, veteran
+   and disability status, non-competes, criminal history. Blank is always an
+   acceptable output. A confidently wrong answer is not. When in doubt, leave
+   it for the user and tell them which questions you left.
+4. **Never add code that clicks Submit, Next, or Continue.** The fill-and-stop
+   boundary is the whole safety model. If the user asks for auto-advance, say
+   what it costs them: no review step before an application is filed under
+   their name.
+5. **`profile.js` ships blank and must stay that way in the repo.** If the
+   user fills it in, that file holds their home address, phone number, and EEO
+   answers. Never commit a filled-in copy, and never paste its contents into
+   an issue, a commit message, or any other repo.
+6. **Keep it consistent with `data/*.yaml`.** Employers, titles, and dates in
+   `profile.js` should match the resume engine's master data exactly. The form,
+   the resume, and a future background check all have to tell the same story.
+   If you change one, offer to update the other.
+
 ## When the user pushes back
 
 If the user asks you to add something that is not in master data, the answer
