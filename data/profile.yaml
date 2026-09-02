@@ -1,0 +1,20 @@
+# Contact info. This block renders as the header of every resume.
+#
+# Leave any field as "" to omit it entirely. Fields render in this order:
+# location, phone, email, linkedin, github, orcid, website.
+#
+# Deliberately excluded, and you should not add them: date of birth, home
+# street address, photo, marital status, nationality. US resume norms treat
+# all of them as liabilities.
+#
+# REPLACE EVERY FILL_ME BELOW. Until you do, validation warns you and the
+# rendered PDF says FILL_ME across the top.
+
+name: FILL_ME
+email: FILL_ME
+phone: FILL_ME
+location: FILL_ME          # "City, ST" is enough
+linkedin: ""               # e.g. linkedin.com/in/yourhandle
+github: ""                 # e.g. github.com/yourhandle
+orcid: ""                  # researchers only
+website: ""                # portfolio or personal site

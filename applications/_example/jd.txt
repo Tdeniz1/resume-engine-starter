@@ -1,0 +1,22 @@
+SAMPLE JOB DESCRIPTION (fictional, used only to demonstrate the pipeline)
+
+Data Analyst, Operations
+Sample Analytics Co. | Chicago, IL | Full-time
+
+About the role
+We are looking for a data analyst who can turn messy operational data into
+decisions leadership will actually act on. You will own recurring reporting,
+build the tooling that replaces manual work, and present findings to
+non-technical stakeholders.
+
+What you will do
+- Analyze large operational datasets to surface bottlenecks and opportunities
+- Automate recurring reporting pipelines
+- Partner with operations leaders and present recommendations
+- Validate your own analyses rigorously before they reach a decision-maker
+
+What we look for
+- Strong Python and SQL
+- Experience with statistical analysis and experiment design
+- Clear written and verbal communication with non-technical audiences
+- Bonus: open source contributions, dashboarding, cloud experience

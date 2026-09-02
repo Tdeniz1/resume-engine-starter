@@ -1,0 +1,25 @@
+# MASTER publications. Rendered VERBATIM from this file, so proofread it.
+# A tailored.yaml only chooses which ids to include and in what order.
+#
+# Fields: id, authors, role, title, venue, year, status, link, notes
+#
+# status: be exact and honest. "under review", "preprint", "accepted",
+#         "published, peer-reviewed". A paper that is not accepted anywhere
+#         does not belong in a Publications section: put it under Projects
+#         until it is, and say so in notes.
+#
+# Delete this whole file's entries if you have no publications, and drop
+# "publications" from section_order in your tailored files. An empty section
+# simply does not render.
+
+- id: sample-conference-paper
+  authors: "Lastname, F. & Coauthor, S."
+  role: First Author
+  title: "A Sample Paper Title About Something Specific"
+  venue: "Sample International Conference on Something (SICS)"
+  year: "2025"
+  status: "published, peer-reviewed"
+  link: doi.org/10.0000/sample.0000
+  notes: >
+    SAMPLE ENTRY, delete it. Keep an honesty gate in notes for anything not
+    yet accepted, e.g. "do NOT list under Publications until the DOI exists".

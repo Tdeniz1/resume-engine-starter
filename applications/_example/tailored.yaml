@@ -1,0 +1,67 @@
+# EXAMPLE application, built entirely from the shipped sample master data.
+#
+# It exists for two reasons:
+#   1. A smoke test that proves your install works, before you enter real data:
+#        RESUME_ALLOW_SAMPLE=1 scripts/render.sh applications/_example
+#   2. A schema reference for the agent. Every key an agent may write appears
+#      here at least once.
+#
+# Note what is NOT in this file: no employer names, no job titles, no dates,
+# no school names. Those are pulled from data/ by id at render time, which is
+# exactly why a tailored file cannot invent a job you never had.
+
+meta:
+  company: Sample Analytics Co     # display capitalization, used in the filename
+  role: Data Analyst, Operations
+  role_short: DataAnalyst          # used in the filename
+  date: 2025-01-15
+
+summary: >
+  Analyst who turns operational data into decisions leaders act on: automated
+  reporting that replaced a manual weekly process, a classifier taken from 78%
+  to 85% accuracy, and a track record of presenting to non-technical committees.
+
+experience:
+  - from: sample-analytics-intern
+    bullets:
+      - "Analyzed 12 months of operational data covering roughly 50,000 encounters, surfacing 3 scheduling bottlenecks that leadership folded into the fall staffing plan"
+      - "Built an automated reporting pipeline in Python and SQL that replaced a 6-hour weekly manual process, cutting turnaround to under 10 minutes"
+      - "Presented findings to a 20-person operations committee and co-authored the recommendation memo that followed"
+  - from: sample-research-assistant
+    bullets:
+      - "Ran 40 experimental trials on a machine learning pipeline, improving accuracy from 78% to 85% by rebuilding the feature extraction stage"
+      - "Wrote the data-cleaning tooling now used by 4 other students in the lab"
+
+projects:
+  - from: sample-ml-tool
+    bullets:
+      - "Built an open source forecasting library with 120 monthly active installs and a benchmark suite covering 9 datasets"
+      - "Cut model training time 40% by vectorizing the feature pipeline and adding result caching"
+  - from: sample-capstone
+    bullets:
+      - "Led a 4-person team to 85% accuracy on a held-out test set of 2,000 samples, owning the validation design and the leakage checks that caught an inflated early result"
+
+publications: [sample-conference-paper]
+
+education:
+  - from: sample-bs
+    coursework: [Machine Learning, Probability and Statistics, Databases]
+
+skills:
+  - category: Programming
+    items: [Python, SQL, R, Bash]
+  - category: Data & Analysis
+    items: [Pandas, scikit-learn, A/B Testing, Regression Analysis, Tableau]
+  - category: Tools & Platforms
+    items: [Git, PostgreSQL, AWS]
+  - category: Professional
+    items: [Stakeholder Communication, Technical Writing, Executive Presentations]
+
+honors: [sample-club-lead, sample-scholarship]
+
+certifications: [sample-cert]
+
+# Which sections render, and in what order. Drop a section by removing it
+# here. A research role might lead with publications; a sales role might drop
+# projects entirely.
+section_order: [summary, experience, projects, publications, education, skills, honors, certifications]

@@ -1,0 +1,31 @@
+# MASTER education data.
+#
+# Fields:
+#   id, school, degree, field, start, end, gpa, honors[], coursework[], notes
+#
+# gpa: leave "" to omit it. Put the number your transcript actually says.
+#      Rounding up is the single most commonly caught resume lie.
+# end: "May 2027 (expected)" is fine and renders as written.
+# honors: renders as a middot-separated line under the degree.
+# coursework: does NOT render by default. A tailored.yaml opts in per
+#      application with its own `coursework:` list, so you can show the
+#      3 courses that matter to THIS job and hide the rest.
+
+- id: sample-bs
+  school: Sample State University
+  degree: B.S.
+  field: Computer Science
+  start: Aug 2022
+  end: May 2026 (expected)
+  gpa: "3.6"
+  honors:
+    - Minor in Statistics
+    - Dean's List (4 semesters)
+  coursework:
+    - Machine Learning
+    - Databases
+    - Linear Algebra
+    - Probability and Statistics
+  notes: >
+    SAMPLE ENTRY, delete it. Use notes for rules future-you needs to
+    remember, e.g. which degree framing you use and which you never use.

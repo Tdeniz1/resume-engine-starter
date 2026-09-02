@@ -1,0 +1,12 @@
+# MASTER certifications, credentials, licenses, and training.
+# Renders as a single middot-separated line, verbatim from this file.
+#
+# Fields: id, name, issuer, year
+#
+# Worth including: anything gated behind an exam, a background check, or a
+# credentialing process. Not worth a line: a 2-hour video course.
+
+- id: sample-cert
+  name: Sample Professional Certification
+  issuer: Sample Certifying Body
+  year: "2025"

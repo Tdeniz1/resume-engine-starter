@@ -1,0 +1,21 @@
+# MASTER honors, awards, scholarships, and leadership roles.
+# Renders as an "Honors & Leadership" section, verbatim from this file.
+#
+# Fields: id, name, org, year, detail
+#
+# year:   leave "" for ongoing roles. Undated entries are exempt from the
+#         reverse-chronological rule.
+# detail: one sentence of context. A named scholarship means nothing to a
+#         recruiter outside your state, so say what it took to earn it.
+
+- id: sample-scholarship
+  name: Sample Merit Scholarship
+  org: Sample State University
+  year: "2022"
+  detail: "Awarded to 40 incoming students out of an applicant pool of 3,000, renewed annually on a GPA condition"
+
+- id: sample-club-lead
+  name: Vice President, Sample Engineering Club
+  org: Sample State University
+  year: ""
+  detail: "Lead a 40-member organization, coordinating 4 project teams and a $3,000 annual budget across 6 events per year"
