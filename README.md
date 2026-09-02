@@ -6,6 +6,10 @@ one-page, tailored resume PDF that cannot contain a fact you never gave it.**
 Works with Claude Code, Codex CLI, Cursor, Aider, Gemini CLI, or any agent
 that can read files and run shell commands.
 
+Ships with a companion Chrome extension, [`workday-autofill/`](workday-autofill/),
+that fills Workday application forms from the same data. **It is a work in
+progress** and needs ongoing maintenance: see the warning below.
+
 <p align="center">
   <img src="docs/example-resume.png" alt="A rendered one-page resume showing summary, experience, projects, publications, education, skills, honors, and certifications sections" width="620">
 </p>
@@ -171,6 +175,9 @@ scripts/
   render.sh              the ONLY build path: validate, compile, page check
   hook_validate.sh       Claude Code PostToolUse hook wrapper
 templates/resume.typ     deterministic renderer. never edited per application
+workday-autofill/      Chrome extension, fills Workday forms. WORK IN PROGRESS
+  profile.js             your form answers. ships blank; blank means "skip"
+  src/mappings.js        Workday field map. goes stale; extend with learning mode
 prompts/                 copy-paste prompts for agents without slash commands
 .claude/                 skills and the validation hook
 ```
@@ -215,10 +222,37 @@ squeeze in an extra line.
 
 ---
 
+## The Workday autofill extension
+
+`workday-autofill/` is a local Chrome extension that fills Workday
+applications from `workday-autofill/profile.js`, so the data behind your
+resume also fills the form. It fills and stops: there is no code path that
+clicks Submit, Next, or Continue.
+
+> ### ⚠️ It is a work in progress and will need updating ⚠️
+>
+> - **It is built against a handful of Workday tenants, not all of them.**
+>   Every employer customizes their instance, so expect unmapped fields at
+>   any new company. Learning mode (⌥⇧U) turns those into one-line fixes.
+> - **Workday changes its DOM, and when it does, this breaks.** The
+>   selectors in `src/mappings.js` are a snapshot. There is no version of
+>   this that stays correct without maintenance. Plan on updating it.
+> - **You are legally responsible for every answer on the form.**
+>   Applications carry attestations about citizenship, work authorization,
+>   non-competes, and veteran and disability status. Read the whole form
+>   before you submit, every time.
+> - **Nothing is guessed.** `profile.js` ships completely blank, and a blank
+>   value means the field is skipped and left for you. An unanswered
+>   question is the tool working correctly.
+>
+> Full details and setup: [workday-autofill/README.md](workday-autofill/README.md)
+
 ## Privacy
 
 Your master data is your entire career history, including your phone number
-and any numbers you flagged as CLAIMED with notes about why.
+and any numbers you flagged as CLAIMED with notes about why. Once you fill in
+`workday-autofill/profile.js` it also holds your home address and your EEO
+answers.
 
 **If you fork or clone this publicly, make your copy private before you commit
 filled-in data.** The clean way:
