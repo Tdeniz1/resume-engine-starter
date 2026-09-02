@@ -1,0 +1,45 @@
+# resume-engine configuration.
+#
+# Every key is optional. Delete a key and the engine falls back to the
+# default shown here. Edit this file instead of editing scripts/ or
+# templates/ when you want to change how resumes look or which house
+# rules are enforced.
+
+render:
+  # Font family. The first name your system actually has installed wins,
+  # so this list works on macOS, Linux, and Windows without edits. Typst
+  # prints a harmless "unknown font family" warning for each name you do
+  # not have; ignore it, or trim the list to the one font you do have.
+  font: ["Times New Roman", "Liberation Serif", "DejaVu Serif"]
+  font_size: 9.6          # points; 9.2-10.5 is the useful range for one page
+  paper: "us-letter"      # "a4" for most of the world
+  margin_x: 0.55          # inches
+  margin_y: 0.45          # inches
+  ink: "#000000"          # body text color
+  accent: "#000000"       # headings, rules, bullet markers
+
+rules:
+  # Block the em dash (U+2014) anywhere that renders on the resume. Many
+  # ATS parsers and recruiters read it as an AI tell. En dashes in ranges
+  # (Jun 2025 - Aug 2025) are always fine.
+  no_em_dash: true
+
+  # Force every dated section into reverse chronological order: ongoing
+  # entries first (newest start first), then by end date.
+  reverse_chronological: true
+
+  # Warn past this many bullets total (one-page risk).
+  max_bullets: 18
+
+  # Warn if the rendered PDF exceeds this many pages.
+  max_pages: 1
+
+output:
+  # Optional second home for every rendered PDF, so all of your resumes
+  # live in one findable place. "" disables archiving.
+  # Example: "~/Desktop/Resumes"
+  archive_dir: ""
+
+  # PDF filename pattern. Available: {name} {company} {role} {role_short}
+  # Non-alphanumeric characters are replaced with underscores.
+  filename: "{name}_{company}_{role_short}_Resume.pdf"

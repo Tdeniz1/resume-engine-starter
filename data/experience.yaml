@@ -1,0 +1,58 @@
+# MASTER experience data: every job, internship, and role you have held.
+#
+# This file is the source of truth. Write it LONG and DETAILED. Every metric
+# you will ever want on a resume has to live here first, because the
+# validator rejects any number in a tailored resume that does not appear in
+# the master entry it came from. Nothing here is trimmed for length: the
+# per-application tailoring step decides what to omit.
+#
+# Fields:
+#   id        required, stable, kebab-case. tailored.yaml references this.
+#   company   renders verbatim
+#   title     renders verbatim
+#   location  "City, ST" or "Remote"
+#   start     "Jun 2025" or "2025"
+#   end       "Aug 2025", "2025", or "Present"
+#   bullets   long-form accomplishments, one per line, with real numbers
+#   details   free text that never renders. Put provenance notes and your
+#             own rules here, e.g. "VERIFIED against offer letter",
+#             "CLAIMED, no artifact yet", "do not list for finance roles".
+#
+# Provenance convention worth keeping:
+#   VERIFIED  you can produce the artifact if challenged
+#   CLAIMED   true to your memory, no document to back it
+#   CONFLICT  two of your sources disagree. Never put these on a resume
+#             until you resolve them.
+#
+# DELETE THE sample- ENTRIES BELOW once you have added your own. Validation
+# blocks any resume that still references a sample id.
+
+- id: sample-analytics-intern
+  company: Sample Health Systems
+  title: Data Analytics Intern
+  location: Chicago, IL
+  start: Jun 2025
+  end: Aug 2025
+  bullets:
+    - "Analyzed 12 months of operational data covering roughly 50,000 patient encounters, surfacing 3 scheduling bottlenecks that leadership folded into the fall staffing plan"
+    - "Built an automated reporting pipeline in Python and SQL that replaced a 6-hour weekly manual process, cutting turnaround to under 10 minutes"
+    - "Presented findings to a 20-person operations committee and co-authored the recommendation memo that followed"
+  details: >
+    SAMPLE ENTRY, delete it. Shows the level of specificity that makes
+    tailoring work: numbers, scope, audience, and outcome in every bullet.
+    VERIFIED example. Note how each metric here can be quoted verbatim by a
+    tailored resume, and nothing else can.
+
+- id: sample-research-assistant
+  company: Sample State University
+  title: Undergraduate Research Assistant
+  location: Austin, TX
+  start: Jan 2024
+  end: May 2025
+  bullets:
+    - "Ran 40 experimental trials on a machine learning pipeline for signal classification, improving accuracy from 78% to 85% by rebuilding the feature extraction stage"
+    - "Wrote the data-cleaning tooling now used by 4 other students in the lab"
+    - "Co-authored 1 conference abstract and presented a poster at the university research symposium"
+  details: >
+    SAMPLE ENTRY, delete it. CLAIMED accuracy numbers in a real entry should
+    be marked as such until you can point at the notebook that produced them.

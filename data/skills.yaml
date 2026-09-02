@@ -1,0 +1,20 @@
+# MASTER skills inventory. This is a hard allowlist.
+#
+# A tailored resume may only list skills that appear somewhere in this file.
+# If the validator rejects a skill, the fix is to add it here, but ONLY if
+# you can actually defend it in an interview. That friction is the point.
+#
+# Categories are yours to define. Keep 4 to 7 of them; a tailored resume
+# usually shows 3 to 5, with a JD-relevant subset of items in each.
+
+- category: Programming
+  items: [Python, SQL, JavaScript, TypeScript, R, Bash]
+
+- category: Data & Analysis
+  items: [Pandas, NumPy, scikit-learn, Excel, Tableau, A/B Testing, Regression Analysis]
+
+- category: Tools & Platforms
+  items: [Git, Docker, AWS, PostgreSQL, Jupyter, Linux]
+
+- category: Professional
+  items: [Stakeholder Communication, Technical Writing, Project Scoping, Executive Presentations]

@@ -1,0 +1,14 @@
+.DS_Store
+.playwright-mcp/
+__pycache__/
+*.pyc
+
+# Smoke-test output from the shipped example
+applications/_example/*.pdf
+
+# Uncomment if you keep this repo public and only want the tooling tracked.
+# Your master data and applications are personal; the safer move is to make
+# your whole copy private instead. See the Privacy section of the README.
+# data/
+# applications/
+# intake/PASTE_YOUR_INFO.md

@@ -1,0 +1,38 @@
+# MASTER projects: side projects, research, coursework worth showing, open
+# source, anything with an artifact behind it.
+#
+# Fields:
+#   id, name, role, start, end, link, bullets[], details
+#
+# role   renders in italics after the project name, e.g. "Sole Author"
+# link   renders under the title. A live URL or DOI is worth more than a
+#        paragraph of description. Leave "" to omit.
+# end    "Present" for ongoing work, or same as start for a one-shot.
+#
+# Same rule as experience: write it long here, let tailoring cut it.
+
+- id: sample-ml-tool
+  name: Sample Forecasting Toolkit
+  role: Creator
+  start: "2025"
+  end: Present
+  link: github.com/yourhandle/sample-toolkit
+  bullets:
+    - "Built an open source time-series forecasting library used by 120 monthly active installs, with a benchmark suite covering 9 datasets"
+    - "Cut model training time 40% by vectorizing the feature pipeline and adding result caching"
+  details: >
+    SAMPLE ENTRY, delete it. If a project has a public URL, put it in link:
+    a reader who can click through is worth more than a third bullet.
+
+- id: sample-capstone
+  name: Sample Sensor Classification Capstone
+  role: Team Lead
+  start: "2024"
+  end: "2025"
+  link: ""
+  bullets:
+    - "Led a 4-person team building a wearable sensor classifier that reached 85% accuracy on a held-out test set of 2,000 samples"
+    - "Owned the validation design, including the leakage checks that caught an inflated early result"
+  details: >
+    SAMPLE ENTRY, delete it. Negative or corrective results are strong
+    material: "caught my own inflated result" reads as judgment, not failure.
