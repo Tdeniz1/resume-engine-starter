@@ -11,7 +11,8 @@ Checks (ERRORS block rendering; warnings do not):
   - every experience/project/education `from` id exists in data/  [error]
   - every publication / honor / certification id exists           [error]
   - numbers in bullets appear in the referenced master entry, so
-    a 96% can never quietly become 120%                           [error]
+    a 96% can never quietly become 120%, and a $4.2M can never
+    become $9M                                                    [error]
   - numbers in the summary appear somewhere in master data        [error]
   - every skill listed exists in data/skills.yaml                 [error]
   - sample-* ids or FILL_ME profile fields in a real resume       [error]
@@ -78,7 +79,15 @@ def flatten(obj):
     return str(obj)
 
 
-NUM_RE = re.compile(r"\$?\d[\d,]*(?:\.\d+)?%?|\$\d[\d,]*(?:\.\d+)?[kKmMbB]\b")
+# A number token keeps whatever makes it a claim: a currency symbol, a percent
+# sign, or a magnitude suffix (k/m/b/x). Capturing those is what stops "$4.2M"
+# from being read as the bare digit "4".
+NUM_RE = re.compile(r"\$?\d[\d,]*(?:\.\d+)?(?:%|[kKmMbB]\b|[xX]\b)?")
+
+# Only a truly bare single digit is ambiguous enough to forgive, because master
+# data might legitimately write "three clients" where a bullet says "3 clients".
+# "$9M", "8%", and "5x" are claims, not phrasing, so they are always errors.
+BARE_DIGIT_RE = re.compile(r"\d")
 
 EM_DASH = "—"
 
@@ -142,16 +151,32 @@ def check_no_emdash(text, where):
         )
 
 
+def num_needle(tok):
+    """Normalize a number token for comparison. Commas and a leading currency
+    symbol go; the percent sign and any magnitude suffix STAY, because they are
+    what the claim actually means."""
+    return tok.replace(",", "").lower().lstrip("$")
+
+
+# A number must appear in master data as its own token, not merely as a run of
+# characters inside a bigger one. Without this, "35" matches inside "3,735" and
+# "8%" matches the "8" in a date, so an inflated figure rides in on an unrelated
+# number that happens to share digits.
+NUM_LEFT = r"(?<![0-9.])"
+NUM_RIGHT = r"(?![0-9.%kmbx])"
+
+
 def check_numbers(text, source_text, where):
     src = source_text.replace(",", "").lower()
     for tok in NUM_RE.findall(text):
-        norm = tok.replace(",", "").strip("$%").lower()
-        if norm and norm not in src:
-            msg = (f"{where}: '{tok}' does not appear in the referenced master "
-                   "entry. Metrics must come from data/ verbatim.")
-        else:
+        needle = num_needle(tok)
+        if not needle:
             continue
-        if len(norm) == 1:  # bare single digit, e.g. "3 clients" vs "three"
+        if re.search(NUM_LEFT + re.escape(needle) + NUM_RIGHT, src):
+            continue
+        msg = (f"{where}: '{tok}' does not appear in the referenced master "
+               "entry. Metrics must come from data/ verbatim.")
+        if BARE_DIGIT_RE.fullmatch(tok.strip()):
             warnings.append(msg)
         else:
             errors.append(msg)
