@@ -1,0 +1,73 @@
+<!-- Synthetic Workday page: every shape the coverage work touches, in one step.
+     Deliberately built the way the LOG says real tenants render:
+     - experience block WITHOUT workExperience-N ids (label mode)
+     - a dropdown that aria-labelledby's its own value (junk self-label)
+     - utilityMenuButton page furniture
+     - technology-list checkboxes
+     - a language row -->
+<h1>My Application</h1>
+
+<button data-automation-id="utilityMenuButton" aria-haspopup="listbox">DT</button>
+
+<h2>Work Experience</h2>
+<div id="expSection">
+  <div class="entry">
+    <div data-automation-id="formField-1"><label>Job Title*</label><input type="text"></div>
+    <div data-automation-id="formField-2"><label>Company*</label><input type="text"></div>
+    <div data-automation-id="formField-3"><label>Location</label><input type="text"></div>
+    <div data-automation-id="formField-4">
+      <input id="cur1" type="checkbox"><label for="cur1">I currently work here</label>
+    </div>
+    <div data-automation-id="formField-5"><label>From*</label>
+      <div data-automation-id="dateInputWrapper">
+        <input data-automation-id="dateSectionMonth-input">
+        <input data-automation-id="dateSectionYear-input">
+      </div>
+    </div>
+    <div data-automation-id="formField-6"><label>To</label>
+      <div data-automation-id="dateInputWrapper">
+        <input data-automation-id="dateSectionMonth-input">
+        <input data-automation-id="dateSectionYear-input">
+      </div>
+    </div>
+    <div data-automation-id="formField-7"><label>Role Description</label><textarea></textarea></div>
+  </div>
+</div>
+
+<h2>Application Questions</h2>
+<div id="questions"></div>
+
+<h2>Which of the following do you have experience with?</h2>
+<div data-automation-id="formField-s1">
+  <input id="s1" type="checkbox"><label for="s1">Java, SQL, C#, C/C++, Python, etc.</label>
+</div>
+<div data-automation-id="formField-s2">
+  <input id="s2" type="checkbox"><label for="s2">Tableau, PowerBI, SAS, etc.</label>
+</div>
+<div data-automation-id="formField-s3">
+  <input id="s3" type="checkbox"><label for="s3">Other</label>
+</div>
+
+<h2>Languages</h2>
+<div id="langSection">
+  <div class="langrow" id="row-en"></div>
+</div>
+
+<h2>Misc</h2>
+<div data-automation-id="formField-leave"><label>Please explain your reason for leaving your current or last position</label><textarea></textarea></div>
+<div data-automation-id="formField-sms">
+  <input id="sms" type="checkbox" data-automation-id="phone-sms-opt-in">
+  <label for="sms">I consent to receive periodic automated text messages (including from an autodialer) about my application.</label>
+</div>
+<div data-automation-id="formField-emp"><label>Employee ID (if applicable)</label><input type="text"></div>
+
+<h2>Voluntary Self-Identification (CC-305)</h2>
+<div id="selfid">
+  <div data-automation-id="formField-name"><label>Name*</label><input type="text"></div>
+</div>
+
+<h2>Consent</h2>
+<div id="consent"></div>
+
+<h2>How did you hear about us</h2>
+<div id="hdyh"></div>

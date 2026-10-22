@@ -53,6 +53,11 @@ WDAF.dom = (() => {
 
   // Poll on animation frames for a selector (string) or predicate (function
   // returning a truthy value). Resolves null on timeout — never hangs.
+  // Polls on a TIMER, not requestAnimationFrame. Chrome throttles rAF to
+  // ~1 frame/second in a background tab and can pause it outright, so an
+  // rAF-polled wait starves the moment the user switches tabs — measured at
+  // ~1000ms per frame, which made every short timeout expire before its
+  // first check (fixture, 2026-09-10). Timers still fire when hidden.
   function waitFor(selectorOrFn, timeoutMs = 2000, root = document) {
     return new Promise((resolve) => {
       const started = performance.now();
@@ -65,13 +70,19 @@ WDAF.dom = (() => {
         } catch (e) { /* bad selector → treat as miss */ }
         if (hit) return resolve(hit);
         if (performance.now() - started > timeoutMs) return resolve(null);
-        requestAnimationFrame(poll);
+        setTimeout(poll, 25);
       })();
     });
   }
 
-  const settle = () => new Promise((r) =>
-    requestAnimationFrame(() => requestAnimationFrame(r)));
+  // Let React commit. A paint is ideal, but never wait on one longer than a
+  // hidden tab would take to deliver it.
+  const settle = () => new Promise((resolve) => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    requestAnimationFrame(() => requestAnimationFrame(finish));
+    setTimeout(finish, 40);
+  });
 
   // Best-effort visible label for a field element.
   // Workday dropdowns aria-label themselves with their own VALUE
@@ -80,12 +91,20 @@ WDAF.dom = (() => {
   function labelFor(el) {
     if (!el || !el.getAttribute) return "";
     const doc = el.ownerDocument;
+    // The control's own visible text — "4th year (Senior)", "English",
+    // "High School/GED". Workday points aria-labelledby at it, so ANY label
+    // that is just the current value (± "Required") is junk, not a question.
+    // CONTROLS ONLY: a form-field CONTAINER's textContent includes the
+    // question itself, so applying this to a container throws the real label
+    // away (it silently un-labelled the "How Did You Hear About Us?" prompt).
+    const own = /^(button|input|select|textarea)$/i.test(el.tagName)
+      ? norm(el.textContent || "") : "";
     const junk = (s) => {
       const n = norm(s || "");
-      // a control's own value ("Yes"/"No"/"Select One", ± "Required") is
-      // never the question label
       return !n || /^(select one|yes|no)( required)?$/.test(n)
-        || n === "required";
+        || n === "required"
+        || (!!own && (n === own || n === `${own} required`
+                      || n === `select one ${own}` || n === `${own} select one`));
     };
     const textOf = (id) => {
       const n = doc.getElementById(id);
