@@ -1,0 +1,26 @@
+{"label": "First Name", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Last Name", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Email Address", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Phone Number", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "City", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Postal Code", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Are you legally authorized to work in the United States?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Will you now or in the future require sponsorship for employment visa status?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Will you require sponsorship to obtain authorization to work in the U.S.?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Do you now or will you in the future require visa sponsorship to obtain authorization to work in the United States?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Are you legally authorized to work in the United States without sponsorship?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Are you 18 years or older? If you are under 18, hire is subject to a work permit", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Are you under 18 years of age?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Are you willing to obtain a security clearance?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "If you are not a United States citizen, do you have permanent residency?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Will you now or in the future be able to work on-site 5 days a week?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Date of Birth", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Start Date", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Date", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Emergency Contact Name", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Name", "kind": "text", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "What is your highest degree earned?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "How Did You Hear About Us?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Please select your current college or university class standing", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "What is your Veterans Status?", "kind": "dropdown", "host": "example.wd1.myworkdayjobs.com"}
+{"label": "Java, SQL, C#, C/C++, Python, etc.", "kind": "checkbox", "host": "example.wd1.myworkdayjobs.com"}

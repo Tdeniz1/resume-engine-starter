@@ -113,3 +113,67 @@ there is no sensible profile field, add one to the `screening` block.
 | `src/mappings.js` | automation-id table, label alias table, option synonyms. |
 | `src/engine.js` | Fill engine: matching, dropdowns, radios, dates, repeating blocks, learning mode. |
 | `src/content.js` | Entry point: MutationObserver, shortcuts, badge, resume handoff. |
+| `test/` | Regression tests (see below). Uses a fictional persona, never your data. |
+
+## Tests
+
+Run these after every edit to `src/`. They need Node and Python with Playwright
+(`pip install playwright && playwright install chromium`).
+
+```
+node test/match_test.js                    # every sample label through the real matcher
+PROFILE=profile.js node test/match_test.js # the same, against YOUR answers
+python3 test/run_all.py                    # headless fill of 3 synthetic Workday pages
+```
+
+- `match_test.js` replays fields from a `.jsonl` file (default
+  `test/sample_fields.jsonl`, which includes the tricky question wordings
+  listed below) through the real matcher with no browser, and prints what each
+  one would be filled with. Pass your own log as the first argument.
+- `run_all.py` builds each fixture page with the extension inlined, fills it
+  twice (the second pass must change nothing it shouldn't) and fails if any
+  field comes back unmapped or the page throws.
+- Both use `test/sample_profile.js`, a fictional persona. Keep it fictional:
+  it ships in the repo.
+
+## Changelog
+
+**2026-10-22: correctness pass.** Every change below was tested against the
+fixtures and replayed against a log of 582 real Workday fields, with no change
+in any existing answer.
+
+- **Sponsorship questions could be answered from the work-authorization
+  value.** The matcher prefers the longest matching phrase, so "authorization
+  to work" outranked "require sponsorship" in "Will you require sponsorship to
+  obtain authorization to work…?". All authorization phrasings now go through
+  one resolver that tells the two questions apart.
+- **One-word keys no longer contains-match.** `date` filled Date of Birth and
+  Start Date with today; `name` filled Emergency Contact Name. Both now match
+  only a field labelled exactly that.
+- **Inverted questions are left blank:** "Are you under 18?", "Are you
+  willing to obtain a security clearance?", "If you are not a US citizen…?",
+  "highest degree earned", and "…in the future be able to work on-site…".
+- **Option matching is word-bounded.** "No" can no longer select "None",
+  "Not applicable" or "Yes, I will now…", and a short skill like "R" can no
+  longer select "Ruby".
+- **Checkboxes are tick-only.** A "No" answer leaves a box alone instead of
+  unticking something you ticked by hand. The disability checkboxes match
+  their answer exactly instead of by substring.
+- **Dates:** a calendar never clicks a greyed day from the neighbouring
+  month, a month picker never commits a month in the wrong year, and a
+  failed attempt closes its popup instead of blocking later fills.
+- Radios without a `name` are grouped per question, not page-wide; the
+  "currently work here" box is found by its label, not "any checkbox"; and an
+  experience section's Add button is never confused with another section's.
+- Waits poll on timers instead of `requestAnimationFrame`, which Chrome
+  throttles to about 1 frame per second in a background tab.
+- The extension now runs only on Workday's application hosts
+  (`myworkdayjobs.com`, `myworkdaysite.com`, `myworkday.com`). The old
+  `*.workday.com` match also covered Workday's own marketing site, whose
+  contact forms it would have filled with your details.
+- New blank profile fields: `personal.smsOptIn`,
+  `application.willingToTravel`, `application.travelPercentage`,
+  `application.reasonForLeaving`, `screening.disciplinaryAction`.
+- Also carried over from the private copy: prompt/multiselect widgets
+  (search, pick, verify the chip), language rows, empty-section Add buttons,
+  education repair, and the technology-list checkbox rule.

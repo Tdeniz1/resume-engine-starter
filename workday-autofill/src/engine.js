@@ -34,7 +34,15 @@ WDAF.engine = (() => {
   let filling = false;
   let lastStats = { filled: 0, skipped: 0 };
 
-  const BLOCK_SEL = '[data-automation-id^="workExperience-"], [data-automation-id^="education-"]';
+  // Repeating-entry blocks. `data-wdaf-block` is stamped by fillSection on
+  // tenants that render blocks WITHOUT workExperience-N / education-N ids —
+  // without it those blocks' fields (Job Title, Company, From, Role
+  // Description…) leak into the generic pass, where they are meaningless
+  // out of context and only ever showed up as noise in the unmapped log.
+  const BLOCK_SEL = '[data-automation-id^="workExperience-"], [data-automation-id^="education-"], [data-wdaf-block]';
+
+  // Page furniture that happens to be a listbox button — never a question.
+  const NON_FORM_DROPDOWNS = new Set(["utilityMenuButton", "languageSelector"]);
 
   // -------------------------------------------------------------------------
   // Field discovery
@@ -61,14 +69,21 @@ WDAF.engine = (() => {
     }
 
     for (const el of document.querySelectorAll('button[aria-haspopup="listbox"]')) {
-      if (d.isVisible(el) && !inBlock(el)) out.push(desc("dropdown", el));
+      if (!d.isVisible(el) || inBlock(el)) continue;
+      if (NON_FORM_DROPDOWNS.has(el.getAttribute("data-automation-id"))) continue;
+      const dsc = desc("dropdown", el);
+      // Chrome/page furniture (account menu, language switcher) is a listbox
+      // button too, but it lives outside any form field and has no label.
+      if (!dsc.label && !el.closest('[data-automation-id*="formField"]')) continue;
+      out.push(dsc);
     }
 
     // Radio groups, keyed by input name
     const groups = new Map();
     for (const r of document.querySelectorAll('input[type="radio"]')) {
       if (inBlock(r) || !d.isVisible(d.clickTargetFor(r))) continue;
-      const key = r.name || "wdaf-anon";
+      const key = r.name
+        || r.closest('fieldset, [role="radiogroup"], [data-automation-id^="formField"]') || r;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(r);
     }
@@ -83,6 +98,25 @@ WDAF.engine = (() => {
     for (const w of document.querySelectorAll('[data-automation-id="dateInputWrapper"], [data-automation-id="dateSection"]')) {
       if (inBlock(w)) continue;
       if (w.querySelector('input[data-automation-id^="dateSection"]')) out.push(desc("date", w));
+    }
+
+    // Prompt / multiselect widgets ("How Did You Hear About Us?" on many
+    // tenants). These have no listbox button and their input is a searchBox,
+    // which the loop above skips — so they were invisible to the engine and
+    // the answer went in as TYPED TEXT that never commits (live 2026-09-10).
+    for (const ff of document.querySelectorAll('[data-automation-id*="formField"]')) {
+      if (inBlock(ff) || !d.isVisible(ff)) continue;
+      if (ff.querySelector('button[aria-haspopup="listbox"]')) continue; // plain dropdown
+      const isPrompt = ff.querySelector('input[data-automation-id="searchBox"]')
+        || ff.querySelector('[data-automation-id="selectedItemList"], '
+                            + '[data-automation-id="multiselectInputContainer"], '
+                            + '[data-automation-id="promptIcon"]');
+      if (!isPrompt) continue;
+      const dsc = desc("prompt", ff);
+      // Skills and the in-block school/field-of-study prompts have their own
+      // fillers — they must not be answered twice.
+      if (/^skills\b|type to add skills/.test(d.norm(dsc.label))) continue;
+      out.push(dsc);
     }
     return out;
   }
@@ -111,7 +145,8 @@ WDAF.engine = (() => {
       // Fuzzy contains on word boundaries (so "city" never matches inside
       // "citizenship"), and only when every hit points at the same resolver.
       const padded = ` ${label} `;
-      const hits = Object.keys(m.byLabel).filter((k) => padded.includes(` ${k} `));
+      const hits = Object.keys(m.byLabel).filter((k) =>
+        !(m.exactOnly && m.exactOnly.has(k)) && padded.includes(` ${k} `));
       if (hits.length) {
         // Most specific alias wins: "gpa 3 0 or above" must beat "gpa".
         hits.sort((a, b) => b.length - a.length);
@@ -119,6 +154,11 @@ WDAF.engine = (() => {
         const resolvers = new Set(top.map((k) => String(m.byLabel[k])));
         if (resolvers.size === 1) return m.byLabel[top[0]];
       }
+    }
+    // Shape-based rules last (technology-list checkboxes, …). Explicit
+    // patterns only — they still answer strictly from the profile.
+    for (const rule of (m.byPattern || [])) {
+      try { if (rule.test(f)) return rule.resolve; } catch (e) { /* next rule */ }
     }
     return null; // never guess into a field
   }
@@ -190,25 +230,47 @@ WDAF.engine = (() => {
     return true;
   }
 
+  // Every shape an option row takes across tenants: Workday's own ids, ARIA
+  // roles, plain list items, and the radio-style rows the Field of Study
+  // prompt uses.
+  const OPTION_SEL = '[data-automation-id="promptOption"], '
+    + '[data-automation-id="promptLeafNode"], [data-automation-id="promptOptionSingleLabel"], '
+    + '[role="option"], [role="radio"], [role="menuitem"], [role="treeitem"], '
+    + 'ul[role="listbox"] li';
+
   function findOption(value) {
     const d = D(), m = M();
-    const opts = [...document.querySelectorAll(
-      '[data-automation-id="promptOption"], [role="option"], ul[role="listbox"] li')]
-      .filter((o) => d.isVisible(o) && d.norm(o.textContent));
+    const opts = [...document.querySelectorAll(OPTION_SEL)]
+      .filter((o) => d.isVisible(o) && d.norm(o.textContent))
+      // A prompt's rows can BE radios, but a form's own Yes/No radio group
+      // must never be mistaken for an open dropdown's options.
+      .filter((o) => o.getAttribute("role") !== "radio"
+        || !o.closest('[role="radiogroup"], fieldset')
+        || !!o.closest('[role="listbox"], [data-automation-id="promptOptions"], '
+                       + '[data-automation-id="activeListContainer"]'));
     if (!opts.length) return null;
     const wanted = [d.norm(value), ...(m.optionSynonyms[d.norm(value)] || [])];
     for (const target of wanted) {
       let hit = opts.find((o) => d.norm(o.textContent) === target)
-        || opts.find((o) => d.norm(o.textContent).startsWith(target));
+        || opts.find((o) => prefixWord(d.norm(o.textContent), target));
       if (!hit) {
-        const contains = opts.filter((o) =>
-          d.norm(o.textContent).includes(target) || target.includes(d.norm(o.textContent)));
+        const contains = opts.filter((o) => {
+          const t = d.norm(o.textContent);
+          return containsWord(t, target) || containsWord(target, t);
+        });
         if (contains.length === 1) hit = contains[0];
       }
       if (hit) return hit;
     }
     return null;
   }
+
+  // Option text matching on WORD boundaries (norm() turns punctuation into
+  // spaces): "no" must not prefix-match "None" / "Not applicable", "R" must
+  // not match "Ruby", and contains-matching needs a whole word of 3+ chars
+  // ("y" used to hit "prefer not to sa-y").
+  const prefixWord = (lbl, t) => !!t && (lbl === t || lbl.startsWith(t + " "));
+  const containsWord = (lbl, t) => !!t && t.length >= 3 && ` ${lbl} `.includes(` ${t} `);
 
   function closePopup(btn) {
     try {
@@ -218,12 +280,39 @@ WDAF.engine = (() => {
     } catch (e) { /* best effort */ }
   }
 
-  function fillCheckbox(f, value) {
+  // Checkboxes get a ladder, because one click is not enough on every
+  // tenant: the CC-305 self-identify boxes and some consent boxes ignore a
+  // synthetic click on the label but commit on Space. Each rung is VERIFIED
+  // before moving on, and a box that still won't move is flagged rather than
+  // reported as filled.
+  async function fillCheckbox(f, value) {
+    const d = D();
+    const el = f.el;
+    // Tick only, never untick: a "No"/false answer leaves the box alone, so a
+    // box the user ticked by hand ("I do not want to answer") survives a refill.
     const want = truthy(value);
-    if (f.el.checked === want) return false;
-    D().simClick(D().clickTargetFor(f.el)); // click the label, not the input
-    D().flash(f.el);
-    return true;
+    if (!want || el.checked) return false;
+    const rungs = [
+      () => d.simClick(d.clickTargetFor(el)), // the visible label
+      () => d.simClick(el),                   // the input itself
+      () => {                                 // keyboard: Space toggles it
+        try { el.focus(); } catch (e) { /* non-focusable */ }
+        for (const type of ["keydown", "keypress", "keyup"]) {
+          el.dispatchEvent(new KeyboardEvent(type, {
+            key: " ", code: "Space", keyCode: 32, which: 32,
+            bubbles: true, cancelable: true,
+          }));
+        }
+      },
+    ];
+    for (const rung of rungs) {
+      try { rung(); } catch (e) { /* try the next one */ }
+      await d.settle();
+      if (el.checked) { d.flash(el); return true; }
+    }
+    el.setAttribute("data-wdaf-retry", "check");
+    d.log("checkbox did not commit:", (f.label || "").slice(0, 55));
+    return false;
   }
 
   function fillRadioGroup(f, value) {
@@ -240,8 +329,8 @@ WDAF.engine = (() => {
     // otherwise "Male" would contains-match the "Female" option first.
     for (const test of [
       (lbl, t) => lbl === t,
-      (lbl, t) => lbl.startsWith(t),
-      (lbl, t) => t && lbl.includes(t),
+      prefixWord,
+      containsWord,
     ]) {
       for (const target of wanted) {
         const hit = labeled.find((x) => test(x.lbl, target));
@@ -288,14 +377,175 @@ WDAF.engine = (() => {
         y < +dt.y ? "monthPickerRightSpinner" : "monthPickerLeftSpinner"}"]`));
       await d.waitFor(() => parseInt(lbl.textContent, 10) !== y, 400);
     }
+    const yLbl = document.querySelector(
+      '[data-automation-id="monthPickerSpinnerLabel"]');
+    if (dt.m && (!yLbl || parseInt(yLbl.textContent, 10) !== +dt.y)) {
+      closePopup(icon);  // a month tile now would commit the WRONG year
+      return false;
+    }
     const tiles = [...document.querySelectorAll(
       '[data-automation-id="monthPickerTileLabel"]')];
     const want = dt.m ? MONTH_ABBR[parseInt(dt.m, 10) - 1] : String(dt.y);
     const tile = tiles.find((t) => t.textContent.trim() === want);
-    if (!tile) return false;
+    if (!tile) { closePopup(icon); return false; }
     d.simClick(tile);
     await d.settle();
     return true;
+  }
+
+  const MONTH_FULL = ["january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december"];
+
+  // Full-date calendar popup (CC-305 "Date", and any MM/DD/YYYY widget).
+  // The segmented inputs on these are DECOYS — tabindex -1 under aria-hidden
+  // wrappers — so no amount of typing reaches React state. Clicking a day
+  // cell is the only path that commits. Selectors fall back to structure so a
+  // tenant that themes or renames its picker still works.
+  async function dayPickerFallback(wrapper, dt) {
+    const d = D();
+    if (!dt.m || !dt.d || !dt.y) return false;
+    const icon = wrapper.querySelector('[data-automation-id="dateIcon"]')
+      || wrapper.querySelector('button, [role="button"], svg, img');
+    if (!icon) return false;
+
+    // Clear whatever garbage is in the field FIRST. The popup opens on the
+    // month the widget's state holds, so a half-written "09//" from an
+    // earlier attempt is what strands it on September 2009 — 204 months of
+    // walking away from today. Cleared, it opens on the current month.
+    for (const seg of wrapper.querySelectorAll("input")) {
+      if (String(seg.value).trim()) {
+        try { d.setNativeValue(seg, ""); } catch (e) { /* keep going */ }
+      }
+    }
+    await d.settle();
+    d.simClick(icon);
+
+    // Re-query the popup EVERY time: React pickers replace the whole popup
+    // on each month change, and a captured node goes stale after one hop —
+    // the walk then reads a detached header forever (160s hang, caught in
+    // the fixture 2026-09-10).
+    const popupNow = () =>
+      document.querySelector('[data-automation-id="datePicker"]')
+      || [...document.querySelectorAll('[role="dialog"], [role="application"], [class*="atePicker"], [class*="alendar"]')]
+           .find((n) => d.isVisible(n) && dayCells(n).length >= 20)
+      || null;
+
+    const popup = await d.waitFor(popupNow, 2500);
+    if (!popup) return false;
+
+    const header = () => {
+      const popup = popupNow();
+      if (!popup) return null;
+      const h = popup.querySelector('[data-automation-id="datePickerMonth"]');
+      const txt = h ? h.textContent
+        : ([...popup.querySelectorAll("*")]
+            .map((n) => (n.children.length ? "" : (n.textContent || "").trim()))
+            .find((t) => /^[A-Za-z]+\s+\d{4}$/.test(t)) || "");
+      const mm = MONTH_FULL.findIndex((n) => d.norm(txt).startsWith(n.slice(0, 3)));
+      const yy = parseInt((txt.match(/\d{4}/) || [])[0], 10);
+      return mm < 0 || !yy ? null : { m: mm + 1, y: yy, txt: txt.trim() };
+    };
+
+    const want = { m: parseInt(dt.m, 10), y: parseInt(dt.y, 10) };
+
+    // "Today" is ambiguous — this Mac and the tenant's server can be a day
+    // apart. If we're asking for today AND the popup already shows the
+    // current month, the calendar's own today-marked cell is the authority.
+    const now = new Date();
+    const isToday = want.y === now.getFullYear() && want.m === now.getMonth() + 1
+      && parseInt(dt.d, 10) === now.getDate();
+    if (isToday) {
+      const h0 = header();
+      if (h0 && h0.m === want.m && h0.y === want.y) {
+        const todayCell = (popupNow() || popup).querySelector(
+          '[data-automation-id="datePickerSelectedToday"], [aria-current="date"]');
+        if (todayCell) {
+          d.simClick(todayCell);
+          await d.settle();
+          return true;
+        }
+      }
+    }
+
+    // Walk to the target month. The popup opens on whatever the widget's
+    // React state holds — after a failed typing attempt that can be years
+    // away (a live run opened on September 2009), so allow a long walk.
+    const deadline = performance.now() + 25000; // never hang the page
+    let stuck = 0;
+    for (let i = 0; i < 400 && performance.now() < deadline; i++) {
+      const now = header();
+      if (!now) break;
+      const delta = (want.y - now.y) * 12 + (want.m - now.m);
+      if (delta === 0) break;
+      const pop = popupNow();
+      if (!pop) break;
+      const nav = pop.querySelector(`[data-automation-id="${delta > 0 ? "nextControl" : "previousControl"}"]`)
+        || navButton(pop, delta > 0);
+      if (!nav) break;
+      d.simClick(nav);
+      const moved = await d.waitFor(() => {
+        const h = header();
+        return h && h.txt !== now.txt;
+      }, 400);
+      // Two dead clicks in a row means the arrows aren't driving this widget.
+      if (!moved && ++stuck >= 2) { d.log("date picker: month nav not responding"); break; }
+      if (moved) stuck = 0;
+    }
+
+    // Never click a day in the wrong month — that is how a walk that ran out
+    // of budget silently wrote 6/10/2026 instead of 9/10/2026 (fixture,
+    // 2026-09-10). If we didn't land on the target month, give up cleanly.
+    const landed = header();
+    if (!landed || landed.m !== want.m || landed.y !== want.y) {
+      d.log("date picker: never reached", `${want.m}/${want.y}`,
+            landed ? `(stopped on ${landed.txt})` : "(no header)");
+      closePopup(icon);
+      return false;
+    }
+
+    // aria-label ("Wednesday 23 September 2026") first: a bare "23" can be
+    // the greyed PREVIOUS month's cell, which comes earlier in the grid.
+    const wantDay = String(parseInt(dt.d, 10));
+    const cells = dayCells(popupNow() || popup);
+    const cell = cells.find((c) => {
+      const lbl = d.norm(c.getAttribute("aria-label") || "");
+      return !!lbl && lbl.includes(MONTH_FULL[want.m - 1])
+        && new RegExp(`\\b${wantDay}\\b`).test(lbl);
+    }) || cells.find((c) => !c.getAttribute("aria-label")
+                     && (c.textContent || "").trim() === wantDay);
+    if (!cell) { closePopup(icon); return false; }
+    d.simClick(cell);
+    await d.settle();
+    return true;
+  }
+
+  // Day cells: Workday's own ids first, then any small numeric cell that is
+  // not a greyed adjacent-month day.
+  function dayCells(root) {
+    const d = D();
+    const byId = [...root.querySelectorAll(
+      '[data-automation-id="datePickerDay"], [data-automation-id="datePickerSelectedToday"]')];
+    if (byId.length) return byId;
+    return [...root.querySelectorAll('td, [role="gridcell"], button, div')]
+      .filter((n) => !n.children.length
+        && /^\d{1,2}$/.test((n.textContent || "").trim())
+        && n.getAttribute("aria-disabled") !== "true"
+        && !/outside|adjacent|muted|disabled|other-?month/i.test(n.className || "")
+        && d.isVisible(n));
+  }
+
+  function navButton(popup, forward) {
+    const d = D();
+    const btns = [...popup.querySelectorAll('button, [role="button"], svg')]
+      .filter((b) => d.isVisible(b));
+    const byLabel = btns.find((b) => {
+      const t = d.norm((b.getAttribute("aria-label") || "") + " " + (b.title || ""));
+      return forward ? /next|forward/.test(t) : /prev|previous|back/.test(t);
+    });
+    if (byLabel) return byLabel;
+    // Header row convention: ‹ on the left, › on the right.
+    const arrows = btns.filter((b) => (b.textContent || "").trim().length <= 2);
+    return forward ? arrows[arrows.length - 1] : arrows[0];
   }
 
   async function fillDate(f, value, { overwrite = false } = {}) {
@@ -310,6 +560,29 @@ WDAF.engine = (() => {
     // old batch write left month committed and year on a dead node
     // ("Invalid Date: 02/" wall, seen live 2026-09-02).
     const wantSegs = [["Month", dt.m], ["Day", dt.d], ["Year", dt.y]];
+
+    const segsOk = () => {
+      const segs = wantSegs.filter(([name, val]) => val && q(name));
+      if (segs.length) {
+        return segs.every(([name, val]) =>
+          String(q(name).value).trim() === String(parseInt(val, 10)));
+      }
+      const single = wrapper.querySelector("input");
+      const txt = single ? String(single.value) : (wrapper.textContent || "");
+      return (!dt.d || txt.includes(String(parseInt(dt.d, 10)))) && txt.includes(String(dt.y));
+    };
+
+    // FULL dates (MM/DD/YYYY) go through the calendar FIRST. On the CC-305
+    // self-identify form the segment inputs are decoys — typing leaves
+    // "Invalid Date: 09//" and a picker stranded on the wrong year, which is
+    // exactly what a live run produced on 2026-09-10.
+    if (dt.m && dt.d && dt.y && !segsOk()) {
+      if (await dayPickerFallback(wrapper, dt) && segsOk()) {
+        d.flash(wrapper);
+        return true;
+      }
+    }
+
     let did = false;
     for (const [name, val] of wantSegs) {
       const input = q(name);
@@ -326,14 +599,13 @@ WDAF.engine = (() => {
         String(input.value).trim() !== String(parseInt(val, 10));
     });
     if (bad) {
-      if (await pickerFallback(wrapper, dt)) {
-        const stillBad = wantSegs.some(([name, val]) => {
-          const input = q(name);
-          return input && val &&
-            String(input.value).trim() !== String(parseInt(val, 10));
-        });
-        if (!stillBad) { d.flash(wrapper); return true; }
-      }
+      // MM/YYYY widgets (experience dates) use the month-tile picker; full
+      // dates get a second calendar attempt, since typing has now scrambled
+      // the widget's state and the picker walk can still recover it.
+      const recovered = (dt.m && dt.d && dt.y)
+        ? await dayPickerFallback(wrapper, dt)
+        : await pickerFallback(wrapper, dt);
+      if (recovered && segsOk()) { d.flash(wrapper); return true; }
       wrapper.setAttribute("data-wdaf-date", String(value));
       d.log("date: segments unverified — flagged for driver", String(value));
       return false;
@@ -348,6 +620,83 @@ WDAF.engine = (() => {
     }
     if (did) d.flash(wrapper);
     return did;
+  }
+
+  // Prompt / multiselect field ("How Did You Hear About Us?"). Workday hides
+  // the real answer behind a menu — typing the text in looks filled but never
+  // commits, so this OPENS the widget and CLICKS the option, then proves a
+  // chip landed. Hierarchical prompts (categories → leaves) are handled by
+  // searching, which spans every level.
+  async function fillPromptWidget(container, value) {
+    const d = D(), m = M();
+    const chip = () => container.querySelector('[data-automation-id="selectedItem"]');
+    if (chip()) return false; // already answered
+    const input = container.querySelector(
+      'input[data-automation-id="searchBox"], input[type="text"], input:not([type])');
+    const opener = input
+      || container.querySelector('[data-automation-id="promptIcon"], button, [role="button"]');
+    if (!opener) return false;
+
+    const options = () => [...document.querySelectorAll(OPTION_SEL)].filter(d.isVisible);
+    const openMenu = async () => {
+      d.simClick(opener);
+      return d.waitFor(() => (options().length ? true : null), 1500);
+    };
+    // Click one option and prove the answer stuck. A CATEGORY click looks
+    // identical but lands no chip — the caller treats that as "go deeper".
+    const pick = async (opt) => {
+      const text = (opt.textContent || "").trim();
+      d.simClick(opt);
+      const ok = await d.waitFor(() => (chip()
+        || d.norm(container.textContent).includes(d.norm(text))) ? text : null, 1500);
+      return ok ? text : null;
+    };
+
+    await openMenu();
+    await d.settle();
+    let attempted = "";
+
+    // 1. SEARCH first — Workday's prompt search spans every level of the
+    //    tree, so it reaches a leaf that the top-level menu only shows as a
+    //    category. Synonyms are tried in order, strongest first.
+    if (input) {
+      for (const term of [String(value), ...(m.optionSynonyms[d.norm(value)] || [])]) {
+        d.setNativeValue(input, term);
+        if (!options().length) await openMenu();
+        const opt = await d.waitFor(() => findOption(term), 2000);
+        if (!opt) continue;
+        const landed = await pick(opt);
+        if (landed) { d.flash(container); return true; }
+        attempted = (opt.textContent || "").trim();
+      }
+      d.setNativeValue(input, "");
+    }
+
+    // 2. Otherwise walk the menu: a click that changes the list was a
+    //    category, so look again inside it (Workday nests two levels).
+    for (let depth = 0; depth < 3; depth++) {
+      if (!options().length) await openMenu();
+      const opt = findOption(value);
+      if (!opt) break;
+      const before = options().map((o) => o.textContent).join("|");
+      const landed = await pick(opt);
+      if (landed) { d.flash(container); return true; }
+      attempted = (opt.textContent || "").trim();
+      const drilled = await d.waitFor(
+        () => (options().map((o) => o.textContent).join("|") !== before ? true : null), 1500);
+      if (!drilled) break;
+    }
+
+    if (attempted) {
+      // Same stubborn-widget class as the dropdowns: hand it to the driver.
+      container.setAttribute("data-wdaf-retry", attempted);
+      d.log("prompt: click unverified — flagged for driver:", attempted);
+    } else {
+      d.log("prompt: no option matched", String(value), "for",
+            (d.labelFor(container) || "").slice(0, 50));
+    }
+    closePopup(opener);
+    return false;
   }
 
   // Multiselect search prompt (school, skills, field of study): type, WAIT
@@ -398,10 +747,12 @@ WDAF.engine = (() => {
       fillEducationBlock, stats);
   }
 
-  // Some tenants (MMC, Micron) render experience blocks WITHOUT
+  // Some tenants render experience blocks WITHOUT
   // workExperience-N ids — discover block roots from field labels instead:
   // walk up from each anchor-labeled field to the smallest ancestor that
   // also holds a mate-labeled field but only ONE anchor.
+  const MAX_BLOCK_FIELDS = 16; // one experience entry is ~7 form fields
+
   function blocksByLabel(anchorRe, mateRe) {
     const d = D();
     const ffs = [...document.querySelectorAll('[data-automation-id*="formField"]')];
@@ -413,6 +764,11 @@ WDAF.engine = (() => {
       for (let i = 0; i < 10 && n; i++) {
         const inner = n.querySelectorAll
           ? [...n.querySelectorAll('[data-automation-id*="formField"]')] : [];
+        // With only ONE entry on the page nothing above ever holds a second
+        // anchor, so the climb would run all the way to <body> and call the
+        // whole form one block. Once we have a candidate, stop as soon as an
+        // ancestor is bigger than any single entry could be.
+        if (best && inner.length > MAX_BLOCK_FIELDS) break;
         const nA = inner.filter((f) => anchorRe.test(d.norm(f.textContent || ""))).length;
         const nM = inner.filter((f) => mateRe.test(d.norm(f.textContent || ""))).length;
         if (nA > 1) break; // crossed into the whole-section root
@@ -422,6 +778,43 @@ WDAF.engine = (() => {
       if (best && !roots.includes(best)) roots.push(best);
     }
     return roots;
+  }
+
+  // An EMPTY section renders nothing but a heading and an "Add" button —
+  // no fields at all, so neither the id lookup nor the label lookup can see
+  // it and the whole section was silently skipped (live, 2026-09-10: the user
+  // had to click Add himself). Find the section by its heading and the Add
+  // button that follows it.
+  const SECTION_HEADINGS = {
+    workExperience: /^work experience$|^employment( history)?$|^work history$/,
+    education: /^education$|^education history$/,
+  };
+
+  function addButtonForSection(re) {
+    const d = D();
+    if (!re) return null;
+    const headings = [...document.querySelectorAll(
+      'h1, h2, h3, h4, h5, [role="heading"], legend, label, div, span, p')]
+      .filter((n) => !n.children.length && d.isVisible(n)
+                     && re.test(d.norm(n.textContent || "")));
+    const adds = [...document.querySelectorAll('button, [role="button"]')]
+      .filter((b) => d.isVisible(b) && /^add\b/.test(d.norm(b.textContent || "")));
+    const otherHeads = [...document.querySelectorAll(
+      'h1, h2, h3, h4, h5, [role="heading"]')].filter((n) => d.isVisible(n));
+
+    for (const h of headings) {
+      const after = adds.filter((b) =>
+        h.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      const add = after[0];
+      if (!add) continue;
+      // Don't reach past the next section's heading and click ITS Add button.
+      const crossed = otherHeads.some((o) =>
+        o !== h
+        && (h.compareDocumentPosition(o) & Node.DOCUMENT_POSITION_FOLLOWING)
+        && (o.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING));
+      if (!crossed) return add;
+    }
+    return null;
   }
 
   async function fillSection(key, entries, blockFiller, stats) {
@@ -438,19 +831,34 @@ WDAF.engine = (() => {
       labelMode = blocks.length > 0;
       if (labelMode) d.log(`${key}: ${blocks.length} label-driven block(s)`);
     }
+    if (!blocks.length) {
+      const add = addButtonForSection(SECTION_HEADINGS[key]);
+      if (add) {
+        d.log(`${key}: empty section — clicking Add`);
+        d.simClick(add);
+        await d.waitFor(() => (document.querySelectorAll(blockSel).length
+          || blocksByLabel(...labelArgs).length) ? true : null, 3000);
+        blocks = [...document.querySelectorAll(blockSel)];
+        if (!blocks.length) {
+          blocks = blocksByLabel(...labelArgs);
+          labelMode = blocks.length > 0;
+        }
+      }
+    }
     if (labelMode) {
       // Add blocks until one per profile entry — recount via blocksByLabel
       // (NEVER the id selector: id-recount here once spawned 2->4->6 empty
-      // blocks on Guidehouse because it always saw 0).
+      // blocks on one tenant because it always saw 0).
       const kw = key === "workExperience" ? "experience" : "education";
       let guard = 0;
       while (blocks.length < entries.length && guard++ < entries.length + 2) {
+        // Only THIS section's Add: a stray "Add" (Websites, Languages) spawns
+        // an empty required block that then blocks Next.
         const addBtn = [...document.querySelectorAll("button")]
           .filter((b) => d.isVisible(b))
-          .filter((b) => d.norm(b.textContent).startsWith("add"))
-          .sort((a, b) =>
-            (d.norm(b.textContent).includes(kw) ? 1 : 0) -
-            (d.norm(a.textContent).includes(kw) ? 1 : 0))[0];
+          .find((b) => /^add\b/.test(d.norm(b.textContent))
+                       && d.norm(b.textContent).includes(kw))
+          || addButtonForSection(SECTION_HEADINGS[key]);
         if (!addBtn) break;
         const before = blocks.length;
         d.simClick(addBtn);
@@ -459,6 +867,11 @@ WDAF.engine = (() => {
         blocks = blocksByLabel(...labelArgs);
         if (blocks.length === before) break; // Add didn't take — bail
       }
+      // Stamp the roots so BLOCK_SEL sees them: everything inside belongs to
+      // this entry and must not be matched as a standalone question.
+      blocks.forEach((b, i) => {
+        try { b.setAttribute("data-wdaf-block", `${key}-${i}`); } catch (e) { /* ok */ }
+      });
       const n = Math.min(entries.length, blocks.length);
       for (let i = 0; i < n; i++) {
         try { await blockFiller(blocks[i], entries[i], stats); }
@@ -520,7 +933,10 @@ WDAF.engine = (() => {
         /role description|^description/);
 
     // "I currently work here" BEFORE dates — it hides the To field
-    const cur = block.querySelector('input[data-automation-id="currentlyWorkHere"], input[type="checkbox"]');
+    // the REAL box only — "any checkbox in the block" could toggle another
+    const cur = block.querySelector('input[data-automation-id="currentlyWorkHere"]')
+      || [...block.querySelectorAll('input[type="checkbox"]')].find((c) =>
+           /currently work/.test(d.norm(d.labelFor(c) || d.clickTargetFor(c).textContent)));
     if (cur && cur.checked !== !!entry.current) {
       d.simClick(d.clickTargetFor(cur));
       d.flash(cur);
@@ -539,12 +955,21 @@ WDAF.engine = (() => {
   async function fillEducationBlock(block, entry, stats) {
     const d = D();
     const q = (aid) => block.querySelector(`[data-automation-id="${aid}"]`);
-    // label-driven fallback for tenants without education field ids
+    // Label-driven fallback for tenants without education field ids.
+    // ORDER MATTERS: a dropdown's form field usually also contains a hidden
+    // input, and querying `input` first handed fillDropdown that input
+    // instead of the listbox button — which is why Degree stayed on "Select
+    // One" with a required-field error on a live run (2026-09-10).
     const byLabel = (re, sel) => {
       const ff = [...block.querySelectorAll('[data-automation-id*="formField"]')]
         .find((x) => re.test(d.norm(x.textContent || "")));
-      return ff ? ff.querySelector(
-        sel || 'input, textarea, button[aria-haspopup="listbox"]') : null;
+      if (!ff) return null;
+      if (sel) return ff.querySelector(sel);
+      return ff.querySelector('button[aria-haspopup="listbox"]')
+        || ff.querySelector('input[data-automation-id="searchBox"]')
+        || [...ff.querySelectorAll("input, textarea")]
+             .find((el) => el.type !== "hidden" && d.isVisible(el))
+        || null;
     };
     const isSearchy = (el) => {
       const ff = el.closest('[data-automation-id^="formField"]');
@@ -568,18 +993,33 @@ WDAF.engine = (() => {
       } catch (e) { stats.skipped++; }
     }
 
+    // "Degree" is a wildcard: most tenants list degrees (Bachelors, Masters,
+    // Doctorate…) but some list MAJORS in that same dropdown. Try the degree
+    // first and the field of study second — whichever the list actually
+    // holds is the one that commits, and neither is a guess.
     const degree = q("degree") || q("degreeDropdown") || byLabel(/^degree/);
-    if (degree && entry.degree) {
-      try { if (await fillDropdown({ el: degree }, entry.degree)) stats.filled++; }
-      catch (e) { stats.skipped++; }
+    if (degree && (entry.degree || entry.fieldOfStudy)) {
+      for (const value of [entry.degree, entry.fieldOfStudy].filter(Boolean)) {
+        try {
+          const ok = degree.tagName === "BUTTON"
+            ? await fillDropdown({ el: degree, label: "Degree" }, value)
+            : await fillPromptWidget(
+                degree.closest('[data-automation-id*="formField"]') || degree, value);
+          if (ok) { stats.filled++; break; }
+        } catch (e) { stats.skipped++; }
+      }
     }
 
     const fos = q("field-of-study") || q("fieldOfStudy")
-      || byLabel(/^field of study/);
+      || byLabel(/^field of study|^major\b/);
     if (fos && entry.fieldOfStudy) {
       try {
-        const container = fos.closest('[data-automation-id^="formField"]') || fos;
-        if (await fillSearchPrompt(container, entry.fieldOfStudy)) stats.filled++;
+        const container = fos.closest('[data-automation-id*="formField"]') || fos;
+        const ok = fos.tagName === "BUTTON"
+          ? await fillDropdown({ el: fos, label: "Field of Study" }, entry.fieldOfStudy)
+          : (await fillPromptWidget(container, entry.fieldOfStudy)
+             || await fillSearchPrompt(container, entry.fieldOfStudy));
+        if (ok) stats.filled++;
       } catch (e) { stats.skipped++; }
     }
 
@@ -611,10 +1051,12 @@ WDAF.engine = (() => {
     const d = D(), p = P();
     const list = (p.skills || []).slice(0, 12);
     if (!list.length) return;
+    // "Skills" is the heading on some tenants and "Type to Add Skills" is
+    // the field's own label on others — match either (live 2026-09-10).
     const findBox = () => [...document.querySelectorAll(
         '[data-automation-id*="formField"]')]
       .find((x) => d.isVisible(x) &&
-            /^skills\b/.test(d.norm(x.textContent || "")) &&
+            /^skills\b|type to add skills|^add skills/.test(d.norm(x.textContent || "")) &&
             x.querySelector('input[data-automation-id="searchBox"], input'));
     let box = findBox();
     if (!box) return; // tenant doesn't ask for skills — nothing to do
@@ -624,7 +1066,10 @@ WDAF.engine = (() => {
     if (have().length >= 5) return; // already populated
     for (const skill of list) {
       box = findBox() || box;
-      if (have().some((h) => h.includes(d.norm(skill)))) continue;
+      // Word-boundary match, not substring: plain `includes` made the chip
+      // "scikit-learn" swallow the skill "R", which then never got added.
+      const want = d.norm(skill);
+      if (have().some((h) => h === want || h.split(/\s+/).includes(want))) continue;
       try {
         // fillSearchPrompt skips containers that already hold a chip —
         // skills are MULTI, so bypass that guard by using the raw flow
@@ -645,6 +1090,82 @@ WDAF.engine = (() => {
       } catch (e) { stats.skipped++; }
     }
     d.flash(box);
+  }
+
+  // -------------------------------------------------------------------------
+  // Languages — one ROW per language: a Language
+  // dropdown plus Overall/Reading/Speaking/Writing/Comprehension dropdowns
+  // and an "I am fluent in this language" box. A row only makes sense in the
+  // context of its own language, which is exactly what the generic pass
+  // cannot see — so rows are answered here, and rows for a language that
+  // isn't in the profile are left for a human.
+  // -------------------------------------------------------------------------
+  const PROFICIENCY_RE =
+    /^(overall|comprehension|understanding|listening|reading|speaking|writing|verbal|translation)\b/;
+
+  function proficiencyFor(fluency) {
+    const n = D().norm(fluency);
+    if (!n) return "";
+    if (/native|bilingual/.test(n)) return "Native";
+    if (/fluent/.test(n)) return "Fluent";
+    return fluency;
+  }
+
+  async function fillLanguageSection(stats) {
+    const d = D(), p = P();
+    const langs = (p.languages || []).filter((l) => l.language && l.fluency);
+    if (!langs.length) return;
+    // Match on each control's LABEL, never on a container's textContent:
+    // Workday concatenates label + value + "Required" with no separator, so
+    // "Overall" arrives as "overallselect onerequired" (fixture-proven).
+    const buttons = () => [...document.querySelectorAll('button[aria-haspopup="listbox"]')]
+      .filter((b) => d.isVisible(b));
+    const isProf = (b) => PROFICIENCY_RE.test(d.norm(d.labelFor(b)));
+    const isLangPicker = (b) => /^language\b/.test(d.norm(d.labelFor(b)));
+
+    for (const lang of langs) {
+      const want = d.norm(lang.language);
+      // The row's Language dropdown already holds the language name.
+      const anchor = buttons().find(
+        (b) => d.norm(b.textContent) === want && isLangPicker(b));
+      if (!anchor) continue;
+
+      // Smallest ancestor that also holds this row's proficiency questions.
+      let row = null;
+      let n = anchor.closest('[data-automation-id*="formField"]') || anchor;
+      for (let i = 0; i < 6 && n; i++) {
+        if (buttons().some((b) => n.contains(b) && isProf(b))) { row = n; break; }
+        n = n.parentElement;
+      }
+      if (!row) continue;
+      // A "row" holding two language pickers is really the whole section —
+      // filling it would answer another language with this one's level.
+      if (buttons().filter((b) => row.contains(b) && isLangPicker(b)).length > 1) {
+        d.log("languages: flat layout, left for a human");
+        continue;
+      }
+      try { row.setAttribute("data-wdaf-block", `language-${want}`); } catch (e) { /* ok */ }
+
+      const value = proficiencyFor(lang.fluency);
+      if (!value) continue;
+      for (const btn of buttons().filter((b) => row.contains(b) && isProf(b))) {
+        try {
+          const ok = await fillDropdown(
+            { el: btn, label: d.labelFor(btn), automationId: "" }, value);
+          if (ok) stats.filled++;
+        } catch (e) { stats.skipped++; }
+      }
+      // "I am fluent in this language" — true only for native/fluent.
+      const fluentBox = [...row.querySelectorAll('input[type="checkbox"]')]
+        .find((c) => /fluent/.test(d.norm(d.labelFor(c) || d.clickTargetFor(c).textContent)));
+      if (fluentBox && /native|fluent/i.test(value) && !fluentBox.checked) {
+        try {
+          d.simClick(d.clickTargetFor(fluentBox));
+          d.flash(fluentBox);
+          stats.filled++;
+        } catch (e) { stats.skipped++; }
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -706,6 +1227,7 @@ WDAF.engine = (() => {
       applyOverrides();
       await fillRepeatingSections(stats);
       await fillSkillsSection(stats);
+      await fillLanguageSection(stats);
 
       for (const f of collectFields()) {
         try {
@@ -730,9 +1252,10 @@ WDAF.engine = (() => {
           let ok = false;
           if (f.kind === "text" || f.kind === "textarea") ok = fillText(f, value);
           else if (f.kind === "dropdown")   ok = await fillDropdown(f, value);
-          else if (f.kind === "checkbox")   ok = fillCheckbox(f, value);
+          else if (f.kind === "checkbox")   ok = await fillCheckbox(f, value);
           else if (f.kind === "radiogroup") ok = fillRadioGroup(f, value);
           else if (f.kind === "date")       ok = await fillDate(f, value);
+          else if (f.kind === "prompt")     ok = await fillPromptWidget(f.el, value);
           if (ok) stats.filled++;
           else {
             stats.skipped++;

@@ -11,7 +11,8 @@
     {
       "matches": [
         "https://*.myworkdayjobs.com/*",
-        "https://*.workday.com/*"
+        "https://*.myworkdaysite.com/*",
+        "https://*.myworkday.com/*"
       ],
       "js": [
         "profile.js",

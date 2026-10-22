@@ -36,6 +36,7 @@ window.WDAF_PROFILE = {
     phone: "",                              // digits only, e.g. "5551234567"
     phoneType: "Mobile",                    // Workday device-type dropdown
     phoneCountryCode: "United States of America (+1)",
+    smsOptIn: "",                           // "Yes" = consent to recruiter texts
   },
 
   address: {
@@ -109,6 +110,7 @@ window.WDAF_PROFILE = {
     gpaAbove30: "",
     currentlyEnrolled: "",
     highestDegreeCompleted: "",             // e.g. "High School Diploma"
+    disciplinaryAction: "",                 // "subject to disciplinary action?"
   },
 
   // ---- Per-application answers ---------------------------------------------
@@ -119,6 +121,9 @@ window.WDAF_PROFILE = {
     howDidYouHear: "",                      // e.g. "Company Website"
     classStanding: "",                      // e.g. "Senior" (students only)
     agreeToTerms: "",                       // "Yes" auto-checks step-1 consent
+    willingToTravel: "",                    // "Yes" / "No"
+    travelPercentage: "",                   // e.g. "25%"; partial text matches bands
+    reasonForLeaving: "",                   // one honest sentence, used for past roles
   },
 
   // ---- Education (reverse-chronological) -----------------------------------
