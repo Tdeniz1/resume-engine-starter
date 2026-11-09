@@ -19,7 +19,11 @@
 #let ink = rgb(r.at("ink", default: "#000000"))
 #let accent = rgb(r.at("accent", default: "#000000"))
 #let body-font = r.at("font", default: ("Times New Roman", "Liberation Serif", "Times", "DejaVu Serif"))
-#let body-size = r.at("font_size", default: 9.6) * 1pt
+#let body-size = r.at("font_size", default: 11) * 1pt
+// Every other size is a fixed ratio of the body size (calibrated at 11pt),
+// so changing font_size in config.yaml moves the whole hierarchy together
+// and section headers never end up smaller than body text.
+#let sz(pt) = body-size * (pt / 11)
 
 #let d = yaml(sys.inputs.at("data", default: "/applications/_example/tailored.yaml"))
 #let profile = yaml("/data/profile.yaml")
@@ -44,14 +48,19 @@
   ),
 )
 #set text(font: body-font, size: body-size, fill: ink)
-#set par(justify: false, leading: 0.46em)
-#set list(spacing: 0.4em, body-indent: 0.5em, marker: text(fill: accent)[•])
+// PACKED SPACING: dense lines read as a confident block and leave room for
+// more real content. `leading` is the gap inside a wrapped bullet, list
+// spacing the gap between bullets. Do not loosen these to fill a short page:
+// add real content instead. The small negative v() offsets under entry
+// headers are calibrated to this leading; re-check them if you change it.
+#set par(justify: false, leading: 0.32em, spacing: 0.32em)
+#set list(spacing: 0.18em, body-indent: 0.5em, marker: text(fill: accent)[•])
 
 // ---------- header ----------
 #align(center)[
-  #text(size: 19pt, weight: "bold", tracking: 0.02em)[#profile.name]
+  #text(size: sz(20), weight: "bold", tracking: 0.02em)[#profile.name]
   #v(1pt)
-  #text(size: 9pt, fill: ink)[
+  #text(size: sz(10), fill: ink)[
     #{
       let parts = ()
       for key in ("location", "phone", "email", "linkedin", "github", "orcid", "website") {
@@ -65,20 +74,27 @@
 
 // ---------- helpers ----------
 #let section(title, body) = {
-  v(6pt)
-  text(size: 10.5pt, weight: "bold", fill: accent, tracking: 0.06em)[#upper(title)]
-  v(-6pt)
+  v(5pt)
+  text(size: sz(12), weight: "bold", fill: accent, tracking: 0.06em)[#upper(title)]
+  v(-1.5pt)
   line(length: 100%, stroke: 0.7pt + accent)
-  v(-2pt)
+  v(0.5pt)
   body
 }
+
+// Authorship roles render BOLD: on a citation they are the first thing a
+// reader should catch. Other sub-titles (a degree, a project role) stay
+// italic. Add any role you use in data/ that should render bold.
+#let AUTHORSHIP-ROLES = ("Sole Author", "First Author", "Co-First Author",
+                         "Co-Author", "Senior Author", "Corresponding Author")
+#let is-authorship(s) = AUTHORSHIP-ROLES.contains(str(s).trim())
 
 #let entry-header(left-main, left-sub, dates) = {
   grid(
     columns: (1fr, auto),
     column-gutter: 8pt,
-    [#text(weight: "bold")[#left-main]#if left-sub != "" [, #emph(left-sub)]],
-    align(right, text(size: 9pt, fill: ink)[#dates]),
+    [#text(weight: "bold")[#left-main]#if left-sub != "" [, #if is-authorship(left-sub) [#text(weight: "bold")[#left-sub]] else [#emph(left-sub)]]],
+    align(right, text(size: sz(10.4), fill: ink)[#dates]),
   )
 }
 
@@ -99,10 +115,10 @@
     // location on the line below.
     #for (i, item) in items.enumerate() {
       let m = find(master-exp, item.from)
-      if i > 0 { v(6pt) }
+      if i > 0 { v(3pt) }
       entry-header(m.title, "", m.start + " – " + m.end)
-      v(-3pt)
-      text(size: 9pt, fill: ink)[#m.company#if m.at("location", default: "") != "" [, #m.location]]
+      v(-1pt)
+      text(size: sz(10.4), fill: ink)[#m.company#if m.at("location", default: "") != "" [, #m.location]]
       bullets(item.bullets)
     }
   ]
@@ -114,12 +130,12 @@
   section("Projects")[
     #for (i, item) in items.enumerate() {
       let m = find(master-proj, item.from)
-      if i > 0 { v(6pt) }
+      if i > 0 { v(3pt) }
       let dates = if m.at("start", default: "") == "" { "" } else if m.at("end", default: "") in ("", m.start) { m.start } else { m.start + " – " + m.end }
       entry-header(m.name, m.at("role", default: ""), dates)
       if m.at("link", default: "") != "" {
-        v(-3pt)
-        text(size: 8.5pt, fill: ink)[#m.link]
+        v(-1pt)
+        text(size: sz(9.6), fill: ink)[#m.link]
       }
       bullets(item.bullets)
     }
@@ -133,19 +149,19 @@
     #for (i, item) in items.enumerate() {
       let id = if type(item) == str { item } else { item.from }
       let m = find(master-edu, id)
-      if i > 0 { v(6pt) }
+      if i > 0 { v(3pt) }
       entry-header(m.school, m.degree + " " + m.at("field", default: ""), m.start + " – " + m.end)
       let extras = ()
       if m.at("gpa", default: "") != "" { extras.push("GPA: " + m.gpa) }
       for h in m.at("honors", default: ()) { extras.push(h) }
       if extras.len() > 0 {
-        v(-2pt)
-        text(size: 9pt)[#extras.join("  ·  ")]
+        v(-0.5pt)
+        text(size: sz(10.4))[#extras.join("  ·  ")]
       }
       let cw = if type(item) == dictionary { item.at("coursework", default: ()) } else { () }
       if cw.len() > 0 {
-        v(-2pt)
-        text(size: 9pt)[#text(weight: "medium")[Coursework:] #cw.join(", ")]
+        v(-0.5pt)
+        text(size: sz(10.4))[#text(weight: "medium")[Coursework:] #cw.join(", ")]
       }
     }
   ]
@@ -156,8 +172,8 @@
   if cats.len() == 0 { return }
   section("Skills")[
     #for cat in cats {
-      block(above: 5pt, below: 2pt)[
-        #text(weight: "bold", size: 9.5pt)[#cat.category: ]
+      block(above: 3pt, below: 1pt)[
+        #text(weight: "bold", size: sz(10.8))[#cat.category: ]
         #cat.items.join(", ")
       ]
     }
@@ -170,9 +186,9 @@
   section("Publications")[
     #for id in ids {
       let m = find(master-pubs, id)
-      block(above: 5pt, below: 0pt)[
-        #text(size: 9.3pt)[
-          #text(weight: "medium")[#m.role]: "#m.title," #emph(m.venue), #m.year#if m.at("status", default: "") != "" [ (#m.status)].#if m.at("link", default: "") != "" [ #text(size: 8.5pt, fill: ink)[#m.link]]
+      block(above: 2.5pt, below: 0pt)[
+        #text(size: sz(10.6))[
+          #text(weight: "bold")[#m.role]: "#m.title," #emph(m.venue), #m.year#if m.at("status", default: "") != "" [ (#m.status)].#if m.at("link", default: "") != "" [ #text(size: sz(9.6), fill: ink)[#m.link]]
         ]
       ]
     }
@@ -185,8 +201,8 @@
   section("Honors & Leadership")[
     #for id in ids {
       let m = find(master-honors, id)
-      block(above: 4pt, below: 0pt)[
-        #text(size: 9.3pt)[
+      block(above: 2.5pt, below: 0pt)[
+        #text(size: sz(10.6))[
           #text(weight: "medium")[#m.name]#if m.at("year", default: "") != "" [, #m.year]#if m.at("detail", default: "") != "" [: #m.detail]
         ]
       ]

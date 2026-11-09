@@ -192,7 +192,7 @@ have to touch the scripts:
 ```yaml
 render:
   font: ["Times New Roman", "Liberation Serif", "DejaVu Serif"]
-  font_size: 9.6        # drop to 9.2 to fit more, raise to 10.2 for less
+  font_size: 11         # every size scales from this; drop to 10 to fit more
   paper: "us-letter"    # "a4" for most of the world
   ink: "#000000"
   accent: "#000000"     # headings, rules, bullets. try a navy if you want color
@@ -301,7 +301,7 @@ order. Reverse chronological is enforced. Turn it off in `config.yaml` if you
 want a functional or skills-first resume.
 
 **The PDF is 2 pages** — cut whole entries rather than trimming every bullet,
-or drop `font_size` to 9.2 in `config.yaml`. Three sharp entries beat six thin
+or drop `font_size` to 10 in `config.yaml`. Three sharp entries beat six thin
 ones.
 
 **The header says FILL_ME** — `data/profile.yaml` is still the template.

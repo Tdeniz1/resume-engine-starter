@@ -11,7 +11,7 @@ render:
   # prints a harmless "unknown font family" warning for each name you do
   # not have; ignore it, or trim the list to the one font you do have.
   font: ["Times New Roman", "Liberation Serif", "DejaVu Serif"]
-  font_size: 9.6          # points; 9.2-10.5 is the useful range for one page
+  font_size: 11           # points; every other size scales from this. 10-11.5 fits one page
   paper: "us-letter"      # "a4" for most of the world
   margin_x: 0.55          # inches
   margin_y: 0.45          # inches

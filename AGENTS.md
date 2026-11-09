@@ -40,7 +40,12 @@ Master data and presentation are separated on purpose.
    user has written there, such as which entries to leave off by default.
 4. **One page**, unless `config.yaml` says otherwise. Cut whole entries before
    shrinking everything. A resume with 3 strong entries beats one with 6 thin
-   ones.
+   ones. The other direction matters too: **fill the page**. The template's
+   spacing is deliberately packed, so a resume that stops two-thirds down is
+   wasted space. Aim for roughly 90-95% of the page height by adding more real
+   entries or bullets from `data/` (rule 1 still governs: never invent).
+   Never loosen the template spacing or raise `font_size` to pad a short
+   resume.
 5. **Never compile with `typst` directly.** `scripts/render.sh` is the only
    build path, because it runs validation first. Never hand-name a PDF.
 6. **Never edit `templates/resume.typ` per application.** Layout changes are
